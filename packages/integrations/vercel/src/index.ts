@@ -218,6 +218,16 @@ interface VercelISRConfig {
 	 * @default `[]`
 	 */
 	exclude?: (string | RegExp)[];
+
+	/**
+	 * List of query string parameter names that will be cached independently, or true to cache each unique query value independently.
+	 * If undefined, query values are not considered for caching.
+	 *
+	 * https://vercel.com/docs/build-output-api/primitives#prerender-configuration-file
+	 *
+	 * @default `undefined`
+	 */
+	allowQuery?: string | string[] | true;
 }
 
 export default function vercelAdapter({
@@ -705,11 +715,20 @@ class VercelBuilder {
 			`./functions/${functionName}.prerender-config.json`,
 			this.outDir,
 		);
+		let allowQuery: string[] | undefined = [ASTRO_PATH_PARAM];
+		if(isr.allowQuery === true) {
+			// "If undefined each unique query value is cached independently" https://vercel.com/docs/build-output-api/primitives#prerender-functions:~:text=If%20undefined%20each%20unique%20query%20value%20is%20cached%20independently
+			allowQuery = undefined;
+		} else if(typeof isr.allowQuery === 'string') {
+			allowQuery.push(isr.allowQuery)
+		} else if(Array.isArray(isr.allowQuery)) {
+			allowQuery.push(...isr.allowQuery);
+		}
 		// https://vercel.com/docs/build-output-api/v3/primitives#prerender-configuration-file
 		await writeJson(prerenderConfig, {
 			expiration: isr.expiration ?? false,
 			bypassToken: isr.bypassToken,
-			allowQuery: [ASTRO_PATH_PARAM],
+			allowQuery,
 			passQuery: true,
 		});
 	}
